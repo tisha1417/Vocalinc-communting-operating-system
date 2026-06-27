@@ -2,6 +2,21 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
 
+// Wipe the Supabase auth token immediately on every reload, as explicitly requested by the user.
+// This executes before React even mounts, guaranteeing they start at the Sign In page.
+if (typeof window !== 'undefined') {
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch (e) {
+    console.error('Error wiping local storage on reload:', e);
+  }
+}
+
 export interface UserProfile {
   id: string;
   first_name: string | null;
