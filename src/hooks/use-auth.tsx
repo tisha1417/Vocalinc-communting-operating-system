@@ -43,8 +43,16 @@ const getInitialUser = () => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initialUser = getInitialUser();
+  const initialProfile = initialUser ? {
+    id: initialUser.id,
+    first_name: initialUser.user_metadata?.first_name || 'User',
+    last_name: initialUser.user_metadata?.last_name || '',
+    role: 'user', 
+    created_at: new Date().toISOString()
+  } : null;
+
   const [user, setUser] = useState<User | null>(initialUser);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
   const [session, setSession] = useState<Session | null>(null);
   // If we already have a user, we don't need to block the UI with a global loading state
   const [loading, setLoading] = useState(initialUser === null);
