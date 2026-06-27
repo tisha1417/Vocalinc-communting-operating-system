@@ -36,42 +36,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isMounted) setLoading(false);
     }, 3000);
 
-    // Get initial session
-    supabase.auth.getSession().then(async (response) => {
-      const session = response.data?.session || null;
-      if (isMounted) {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id, session.user.user_metadata);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
-      }
-    }).catch((err) => {
-      console.error('Error getting session:', err);
-      if (isMounted) setLoading(false);
-    });
-
-    // Listen for auth changes
+    // Listen for auth changes (this fires immediately with INITIAL_SESSION)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
         
-        // Only fetch on actual changes, not the initial session which is handled above
-        if (event !== 'INITIAL_SESSION') {
-          setSession(session);
-          setUser(session?.user ?? null);
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Optimistic UI: Immediately set profile from metadata while DB fetches
+          setProfile({
+            id: session.user.id,
+            first_name: session.user.user_metadata?.first_name || 'User',
+            last_name: session.user.user_metadata?.last_name || '',
+            role: 'user', // Assume user initially
+            created_at: new Date().toISOString()
+          });
           
-          if (session?.user) {
-            await fetchProfile(session.user.id, session.user.user_metadata);
-          } else {
-            setProfile(null);
-          }
-          setLoading(false);
+          await fetchProfile(session.user.id, session.user.user_metadata);
+        } else {
+          setProfile(null);
         }
+        
+        if (isMounted) setLoading(false);
       }
     );
 
@@ -101,14 +89,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error || !data) {
         console.error('Error fetching profile or profile not found:', error);
         setProfile(fallbackProfile);
-        // Do not cache the fallback to ensure we try again next time, or cache it if we want it sticky?
-        // Let's not cache fallback to ensure it checks DB next time.
         return;
       }
 
       setProfile(data);
-      // Cache the successful profile
-      localStorage.setItem(`profile_cache_${userId}`, JSON.stringify(data));
     } catch (error) {
       console.error('Error in fetchProfile:', error);
       setProfile(fallbackProfile);
@@ -117,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (signUpData: any) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email: signUpData.email,
         password: signUpData.password,
@@ -145,11 +130,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { data, error: null };
     } catch (error: any) {
       return { data: null, error };
+    } finally {
+      setLoading(false);
     }
   };
 
   const signIn = async (signInData: any) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: signInData.email,
         password: signInData.password,
@@ -160,11 +148,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { data, error: null };
     } catch (error: any) {
       return { data: null, error };
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setLoading(true);
       localStorage.clear();
       setSession(null);
       setUser(null);
@@ -174,6 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
     } catch (error) {
       console.error('Error signing out:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
