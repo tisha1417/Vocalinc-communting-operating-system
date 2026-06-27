@@ -22,11 +22,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to synchronously get the user from localStorage to prevent UI flashing
+const getInitialUser = () => {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const item = localStorage.getItem(key);
+        if (item) {
+          const parsed = JSON.parse(item);
+          return parsed.user || null;
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error reading initial session from localStorage:', e);
+  }
+  return null;
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const initialUser = getInitialUser();
+  const [user, setUser] = useState<User | null>(initialUser);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  // If we already have a user, we don't need to block the UI with a global loading state
+  const [loading, setLoading] = useState(initialUser === null);
 
   useEffect(() => {
     let isMounted = true;
@@ -36,11 +57,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isMounted) setLoading(false);
     }, 3000);
 
-    // Listen for auth changes (this fires immediately with INITIAL_SESSION)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
-        
+    // Get initial session
+    supabase.auth.getSession().then(async (response) => {
+      const session = response.data?.session || null;
+      if (isMounted) {
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -55,11 +75,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           
           await fetchProfile(session.user.id, session.user.user_metadata);
-        } else {
-          setProfile(null);
         }
-        
-        if (isMounted) setLoading(false);
+        setLoading(false);
+      }
+    }).catch((err) => {
+      console.error('Error getting session:', err);
+      if (isMounted) setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        // Only fetch on actual changes, not the initial session which is handled above
+        if (event !== 'INITIAL_SESSION') {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            setProfile({
+              id: session.user.id,
+              first_name: session.user.user_metadata?.first_name || 'User',
+              last_name: session.user.user_metadata?.last_name || '',
+              role: 'user', 
+              created_at: new Date().toISOString()
+            });
+            
+            await fetchProfile(session.user.id, session.user.user_metadata);
+          } else {
+            setProfile(null);
+          }
+          if (isMounted) setLoading(false);
+        }
       }
     );
 
