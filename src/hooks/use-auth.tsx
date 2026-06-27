@@ -22,39 +22,55 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper to synchronously get the user from localStorage to prevent UI flashing
-const getInitialUser = () => {
+// Helper to synchronously get the user and profile from localStorage to prevent UI flashing
+const getInitialState = () => {
   try {
+    let user = null;
+    let profile = null;
+    
+    // 1. Get user from Supabase token
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
         const item = localStorage.getItem(key);
         if (item) {
           const parsed = JSON.parse(item);
-          return parsed.user || null;
+          user = parsed.user || null;
         }
       }
     }
+
+    // 2. Get cached profile
+    if (user) {
+      const cachedProfile = localStorage.getItem(`profile_cache_${user.id}`);
+      if (cachedProfile) {
+        profile = JSON.parse(cachedProfile);
+      }
+    }
+    
+    return { user, profile };
   } catch (e) {
-    console.error('Error reading initial session from localStorage:', e);
+    console.error('Error reading initial state from localStorage:', e);
   }
-  return null;
+  return { user: null, profile: null };
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const initialUser = getInitialUser();
-  const initialProfile = initialUser ? {
+  const initialState = getInitialState();
+  const initialUser = initialState.user;
+  
+  // If we have a cached profile, use it. Otherwise, use a temporary one.
+  const initialProfile = initialState.profile || (initialUser ? {
     id: initialUser.id,
     first_name: initialUser.user_metadata?.first_name || 'User',
     last_name: initialUser.user_metadata?.last_name || '',
     role: 'user', 
     created_at: new Date().toISOString()
-  } : null;
+  } : null);
 
   const [user, setUser] = useState<User | null>(initialUser);
   const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
   const [session, setSession] = useState<Session | null>(null);
-  // If we already have a user, we don't need to block the UI with a global loading state
   const [loading, setLoading] = useState(initialUser === null);
 
   useEffect(() => {
@@ -143,10 +159,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error || !data) {
         console.error('Error fetching profile or profile not found:', error);
         setProfile(fallbackProfile);
+        // Do not cache the fallback to ensure we try again next time, or cache it if we want it sticky?
+        // Let's not cache fallback to ensure it checks DB next time.
         return;
       }
 
       setProfile(data);
+      // Cache the successful profile
+      localStorage.setItem(`profile_cache_${userId}`, JSON.stringify(data));
     } catch (error) {
       console.error('Error in fetchProfile:', error);
       setProfile(fallbackProfile);
