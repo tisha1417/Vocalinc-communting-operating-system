@@ -22,59 +22,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper to synchronously get the user and profile from localStorage to prevent UI flashing
-const getInitialState = () => {
-  try {
-    let user = null;
-    let profile = null;
-    
-    // 1. Get exact project token to prevent cross-project pollution
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    if (supabaseUrl) {
-      // Parse project ID from URL (e.g. https://abcdef.supabase.co -> abcdef)
-      const projectId = supabaseUrl.split('//')[1]?.split('.')[0];
-      if (projectId) {
-        const storageKey = `sb-${projectId}-auth-token`;
-        const item = localStorage.getItem(storageKey);
-        if (item) {
-          const parsed = JSON.parse(item);
-          user = parsed.user || null;
-        }
-      }
-    }
-
-    // 2. Get cached profile
-    if (user) {
-      const cachedProfile = localStorage.getItem(`profile_cache_${user.id}`);
-      if (cachedProfile) {
-        profile = JSON.parse(cachedProfile);
-      }
-    }
-    
-    return { user, profile };
-  } catch (e) {
-    console.error('Error reading initial state from localStorage:', e);
-  }
-  return { user: null, profile: null };
-};
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const initialState = getInitialState();
-  const initialUser = initialState.user;
-  
-  // If we have a cached profile, use it. Otherwise, use a temporary one.
-  const initialProfile = initialState.profile || (initialUser ? {
-    id: initialUser.id,
-    first_name: initialUser.user_metadata?.first_name || 'User',
-    last_name: initialUser.user_metadata?.last_name || '',
-    role: 'user', 
-    created_at: new Date().toISOString()
-  } : null);
-
-  const [user, setUser] = useState<User | null>(initialUser);
-  const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(initialUser === null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -92,16 +44,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Optimistic UI: Immediately set profile from metadata while DB fetches
-          setProfile({
-            id: session.user.id,
-            first_name: session.user.user_metadata?.first_name || 'User',
-            last_name: session.user.user_metadata?.last_name || '',
-            role: 'user', // Assume user initially
-            created_at: new Date().toISOString()
-          });
-          
           await fetchProfile(session.user.id, session.user.user_metadata);
+        } else {
+          setProfile(null);
         }
         setLoading(false);
       }
@@ -113,25 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+        
         // Only fetch on actual changes, not the initial session which is handled above
         if (event !== 'INITIAL_SESSION') {
           setSession(session);
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            setProfile({
-              id: session.user.id,
-              first_name: session.user.user_metadata?.first_name || 'User',
-              last_name: session.user.user_metadata?.last_name || '',
-              role: 'user', 
-              created_at: new Date().toISOString()
-            });
-            
             await fetchProfile(session.user.id, session.user.user_metadata);
           } else {
             setProfile(null);
           }
-          if (isMounted) setLoading(false);
+          setLoading(false);
         }
       }
     );
