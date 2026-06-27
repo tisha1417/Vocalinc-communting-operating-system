@@ -28,11 +28,14 @@ const getInitialState = () => {
     let user = null;
     let profile = null;
     
-    // 1. Get user from Supabase token
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
-        const item = localStorage.getItem(key);
+    // 1. Get exact project token to prevent cross-project pollution
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (supabaseUrl) {
+      // Parse project ID from URL (e.g. https://abcdef.supabase.co -> abcdef)
+      const projectId = supabaseUrl.split('//')[1]?.split('.')[0];
+      if (projectId) {
+        const storageKey = `sb-${projectId}-auth-token`;
+        const item = localStorage.getItem(storageKey);
         if (item) {
           const parsed = JSON.parse(item);
           user = parsed.user || null;
