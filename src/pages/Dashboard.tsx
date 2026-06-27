@@ -5,8 +5,16 @@ import RecentCommands from '../components/RecentCommands';
 import SystemStatus from '../components/SystemStatus';
 import AnalyticsSection from '../components/AnalyticsSection';
 import FeedbackForm from '../components/FeedbackForm';
+import { useAuth } from '../hooks/use-auth';
+import { Dashboard as ResidentDashboardProfile } from '../components/Dashboard';
 
 const Dashboard: React.FC = () => {
+  const { profile } = useAuth();
+
+  if (profile?.role === 'user') {
+    return <ResidentDashboardProfile />;
+  }
+
   const stats = [
     {
       icon: Calendar,
