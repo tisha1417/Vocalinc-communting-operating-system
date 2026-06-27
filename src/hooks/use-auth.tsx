@@ -29,39 +29,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // Failsafe: guarantee loading is cleared after 2.5 seconds no matter what
+    const failsafe = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 2500);
+
     // Get initial session
     supabase.auth.getSession().then(async (response) => {
       const session = response.data?.session || null;
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
+      if (isMounted) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id, session.user.user_metadata);
+        }
+        setLoading(false);
       }
-      setLoading(false);
     }).catch((err) => {
       console.error('Error getting session:', err);
-      setLoading(false);
+      if (isMounted) setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
+        // Only fetch on actual changes, not the initial session which is handled above
+        if (event !== 'INITIAL_SESSION') {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchProfile(session.user.id, session.user.user_metadata);
+          } else {
+            setProfile(null);
+          }
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      clearTimeout(failsafe);
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, userMetadata: any = {}) => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -74,16 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Fallback: If no profile exists in the DB, create a temporary one from user metadata
         // so the app doesn't break for users who bypassed the creation trigger.
-        supabase.auth.getUser().then(({ data: userData }) => {
-          if (userData?.user) {
-            setProfile({
-              id: userId,
-              first_name: userData.user.user_metadata?.first_name || 'User',
-              last_name: userData.user.user_metadata?.last_name || '',
-              role: 'user', // Default to user if not in DB
-              created_at: new Date().toISOString()
-            });
-          }
+        setProfile({
+          id: userId,
+          first_name: userMetadata?.first_name || 'User',
+          last_name: userMetadata?.last_name || '',
+          role: 'user', // Default to user if not in DB
+          created_at: new Date().toISOString()
         });
         return;
       }
