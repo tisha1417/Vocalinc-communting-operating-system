@@ -36,21 +36,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isMounted) setLoading(false);
     }, 3000);
 
-    // Listen for auth changes (this fires immediately with INITIAL_SESSION)
+    // Properly await the session from storage
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        // Optimistic UI for immediate render
+        setProfile({
+          id: session.user.id,
+          first_name: session.user.user_metadata?.first_name || 'User',
+          last_name: session.user.user_metadata?.last_name || '',
+          role: 'user', 
+          created_at: new Date().toISOString()
+        });
+        
+        await fetchProfile(session.user.id, session.user.user_metadata);
+      } else {
+        setProfile(null);
+      }
+      
+      setLoading(false);
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
+        if (event === 'INITIAL_SESSION') return;
         
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Optimistic UI: Immediately set profile from metadata while DB fetches
           setProfile({
             id: session.user.id,
             first_name: session.user.user_metadata?.first_name || 'User',
             last_name: session.user.user_metadata?.last_name || '',
-            role: 'user', // Assume user initially
+            role: 'user', 
             created_at: new Date().toISOString()
           });
           
@@ -59,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null);
         }
         
-        if (isMounted) setLoading(false);
+        setLoading(false);
       }
     );
 
