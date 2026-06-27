@@ -22,7 +22,8 @@ export function AuthForm() {
   });
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
-  const { signUp, signIn, loading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signUp, signIn } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -63,6 +64,7 @@ export function AuthForm() {
 
     if (!validateForm()) return;
 
+    setIsSubmitting(true);
     try {
       if (isSignUp) {
         const { data, error } = await signUp({
@@ -101,6 +103,8 @@ export function AuthForm() {
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -378,7 +382,7 @@ export function AuthForm() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="
                 w-full py-4 rounded-full font-bold text-xl text-white
                 bg-gradient-to-r from-black via-purple-900/30 to-purple-600
@@ -397,7 +401,7 @@ export function AuthForm() {
               }}
             >
               <span className="relative z-10">
-                {loading ? 'Loading...' : (isSignUp ? 'SIGN UP' : 'SIGN IN')}
+                {isSubmitting ? 'Loading...' : (isSignUp ? 'SIGN UP' : 'SIGN IN')}
               </span>
             </button>
           </form>
