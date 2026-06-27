@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/twilio-api/(.*)",
+      "destination": "https://api.twilio.com/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
