@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
 
@@ -10,7 +10,19 @@ export interface UserProfile {
   created_at: string;
 }
 
-export function useAuth() {
+interface AuthContextType {
+  user: User | null;
+  profile: UserProfile | null;
+  session: Session | null;
+  loading: boolean;
+  signUp: (data: any) => Promise<any>;
+  signIn: (data: any) => Promise<any>;
+  signOut: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -71,7 +83,6 @@ export function useAuth() {
   const signUp = async (signUpData: any) => {
     try {
       setLoading(true);
-      
       const { data, error } = await supabase.auth.signUp({
         email: signUpData.email,
         password: signUpData.password,
@@ -85,19 +96,16 @@ export function useAuth() {
 
       if (error) throw error;
 
-      // Manually create the user profile since we don't have a trigger
       if (data?.user) {
         const { error: profileError } = await supabase.from('user_profiles').insert([
           {
             id: data.user.id,
             first_name: signUpData.firstName,
             last_name: signUpData.lastName,
-            role: 'user' // Default role is user
+            role: 'user'
           }
         ]);
-        if (profileError) {
-          console.error("Failed to create profile:", profileError);
-        }
+        if (profileError) console.error("Failed to create profile:", profileError);
       }
 
       return { data, error: null };
@@ -108,10 +116,9 @@ export function useAuth() {
     }
   };
 
-  const signIn = async (signInData: SignInData) => {
+  const signIn = async (signInData: any) => {
     try {
       setLoading(true);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: signInData.email,
         password: signInData.password,
@@ -130,7 +137,6 @@ export function useAuth() {
   const signOut = async () => {
     try {
       setLoading(true);
-      // Force clear local storage FIRST, so even if the network hangs, they are logged out locally!
       localStorage.clear();
       setSession(null);
       setUser(null);
@@ -145,13 +151,17 @@ export function useAuth() {
     }
   };
 
-  return {
-    user,
-    profile,
-    session,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-  };
+  return (
+    <AuthContext.Provider value={{ user, profile, session, loading, signUp, signIn, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

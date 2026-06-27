@@ -91,6 +91,12 @@ export const TechnicianHub = ({ refreshTrigger }: TechnicianHubProps) => {
     }
   };
 
+  const getDerivedStatus = (technician: Technician) => {
+    const isBusy = activeTickets.some(t => t.technician_name === technician.name);
+    if (isBusy) return 'busy';
+    return technician.status === 'offline' ? 'offline' : 'available';
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -144,7 +150,7 @@ export const TechnicianHub = ({ refreshTrigger }: TechnicianHubProps) => {
               <div className="flex justify-between items-center p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
                 <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Currently Busy</span>
                 <span className="font-bold text-lg text-yellow-700 dark:text-yellow-400">
-                  {technicians.filter(t => t.status === 'busy').length}
+                  {technicians.filter(t => getDerivedStatus(t) === 'busy').length}
                 </span>
               </div>
               <div className="space-y-2 mt-4">
@@ -175,7 +181,9 @@ export const TechnicianHub = ({ refreshTrigger }: TechnicianHubProps) => {
         </CardHeader>
         <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {technicians.map((technician) => (
+          {technicians.map((technician) => {
+            const derivedStatus = getDerivedStatus(technician);
+            return (
             <div
               key={technician.id}
               className="p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors"
@@ -185,21 +193,21 @@ export const TechnicianHub = ({ refreshTrigger }: TechnicianHubProps) => {
                   <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
                     {getInitials(technician.name)}
                   </div>
-                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${getStatusColor(technician.status)}`} />
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${getStatusColor(derivedStatus)}`} />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm">{technician.name}</h3>
                   <div className="text-xs text-muted-foreground mt-0.5">{technician.specialty || 'General'}</div>
                   <Badge 
-                    variant={getStatusBadgeVariant(technician.status)}
+                    variant={getStatusBadgeVariant(derivedStatus)}
                     className="text-xs mt-1"
                   >
-                    {technician.status}
+                    {derivedStatus}
                   </Badge>
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
         
         {technicians.length === 0 && (
