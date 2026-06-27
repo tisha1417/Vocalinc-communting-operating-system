@@ -69,8 +69,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      if (error || !data) {
+        console.error('Error fetching profile or profile not found:', error);
+        
+        // Fallback: If no profile exists in the DB, create a temporary one from user metadata
+        // so the app doesn't break for users who bypassed the creation trigger.
+        supabase.auth.getUser().then(({ data: userData }) => {
+          if (userData?.user) {
+            setProfile({
+              id: userId,
+              first_name: userData.user.user_metadata?.first_name || 'User',
+              last_name: userData.user.user_metadata?.last_name || '',
+              role: 'user', // Default to user if not in DB
+              created_at: new Date().toISOString()
+            });
+          }
+        });
         return;
       }
 
