@@ -136,10 +136,10 @@ export function AuthForm() {
           bg-gradient-to-br from-black/95 via-slate-900/90 to-black/95 
           backdrop-blur-xl rounded-3xl shadow-2xl 
           border border-purple-500/30 
-          flex overflow-hidden max-w-4xl w-full mx-4 
+          flex flex-col md:flex-row overflow-hidden max-w-4xl w-full mx-4 
           min-h-[500px] relative z-10 
           transition-all duration-700 ease-in-out
-          ${isSignUp ? 'transform' : ''}
+          ${isSignUp ? 'md:transform' : ''}
         `}
         style={{
           boxShadow: `
@@ -153,10 +153,10 @@ export function AuthForm() {
         <div 
           className={`
             bg-gradient-to-br from-black via-purple-900/30 to-purple-600 
-            flex-1 p-16 flex flex-col justify-center items-center text-center 
+            flex-1 p-8 md:p-16 hidden md:flex flex-col justify-center items-center text-center 
             text-white relative overflow-hidden
             transition-transform duration-700 ease-in-out
-            ${isSignUp ? 'transform translate-x-full' : ''}
+            ${isSignUp ? 'md:translate-x-full' : ''}
           `}
         >
           <div className="absolute inset-0 bg-gradient-to-45 from-transparent via-purple-500/10 to-transparent animate-pulse"></div>
@@ -207,13 +207,13 @@ export function AuthForm() {
         <div 
           className={`
             flex-1 bg-gradient-to-br from-black/95 via-slate-900/90 to-black/95 
-            p-16 flex flex-col justify-center
-            border-l border-purple-500/20 relative
+            p-8 md:p-16 flex flex-col justify-center
+            md:border-l md:border-purple-500/20 relative
             transition-transform duration-700 ease-in-out
-            ${isSignUp ? 'transform -translate-x-full' : ''}
+            ${isSignUp ? 'md:-translate-x-full' : ''}
           `}
         >
-          <div className="absolute left-0 top-0 w-0.5 h-full bg-gradient-to-b from-transparent via-purple-500/80 to-transparent animate-pulse"></div>
+          <div className="hidden md:block absolute left-0 top-0 w-0.5 h-full bg-gradient-to-b from-transparent via-purple-500/80 to-transparent animate-pulse"></div>
           
           <div className="text-center mb-12">
             <h2 
@@ -404,6 +404,20 @@ export function AuthForm() {
                 {isSubmitting ? 'Loading...' : (isSignUp ? 'SIGN UP' : 'SIGN IN')}
               </span>
             </button>
+            
+            {/* Mobile Toggle Button */}
+            <div className="md:hidden text-center mt-6">
+              <p className="text-slate-400 text-sm mb-2">
+                {isSignUp ? 'Already have an account?' : 'Don\'t have an account?'}
+              </p>
+              <button
+                type="button"
+                onClick={toggleForm}
+                className="text-purple-400 font-bold hover:text-purple-300 transition-colors underline"
+              >
+                {isSignUp ? 'Sign In' : 'Sign Up'}
+              </button>
+            </div>
           </form>
         </div>
       </div>
