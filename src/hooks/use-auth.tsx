@@ -140,7 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (signUpData: any) => {
     try {
-      setLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email: signUpData.email,
         password: signUpData.password,
@@ -169,14 +168,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { data, error: null };
     } catch (error: any) {
       return { data: null, error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const signIn = async (signInData: any) => {
     try {
-      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: signInData.email,
         password: signInData.password,
@@ -187,14 +183,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { data, error: null };
     } catch (error: any) {
       return { data: null, error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
       localStorage.clear();
       setSession(null);
       setUser(null);
@@ -204,8 +197,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
     } catch (error) {
       console.error('Error signing out:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
