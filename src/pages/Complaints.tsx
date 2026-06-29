@@ -219,8 +219,15 @@ const Complaints: React.FC = () => {
                       variant="outline" 
                       className="w-full border-green-500/50 text-green-400 hover:bg-green-500/10"
                       onClick={async () => {
+                        // 1. Mark ticket as closed
                         await supabase.from('tickets').update({ status: 'closed' }).eq('id', ticket.id);
-                        toast({ title: 'Issue marked as solved!' });
+                        
+                        // 2. Release the technician back to the available pool
+                        if (ticket.technician_id) {
+                          await supabase.from('technicians').update({ status: 'available' }).eq('id', ticket.technician_id);
+                        }
+
+                        toast({ title: 'Issue marked as solved and technician released!' });
                         fetchTickets();
                       }}
                     >

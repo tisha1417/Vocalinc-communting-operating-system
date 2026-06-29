@@ -92,9 +92,7 @@ export const TechnicianHub = ({ refreshTrigger }: TechnicianHubProps) => {
   };
 
   const getDerivedStatus = (technician: Technician) => {
-    const isBusy = activeTickets.some(t => t.technician_name === technician.name);
-    if (isBusy) return 'busy';
-    return technician.status === 'offline' ? 'offline' : 'available';
+    return technician.status;
   };
 
   return (
